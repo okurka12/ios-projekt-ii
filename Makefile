@@ -23,9 +23,11 @@ FILENAME=proj2
 all: $(FILENAME)
 
 # make run
+.ONESHELL: run
 .PHONY: run
 run: all
 	./$(FILENAME)
+	echo return code $$?
 
 # make clean
 .PHONY: clean
@@ -33,7 +35,7 @@ clean:
 	rm -f *.o $(FILENAME)
 
 # compile main
-$(FILENAME).o: proj2.c
+$(FILENAME).o: proj2.c makra.h
 	$(CC) $(CFLAGS) -c -o $(FILENAME).o proj2.c
 
 # link main
