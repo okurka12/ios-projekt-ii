@@ -38,4 +38,8 @@
 /* print error */
 #define perror(msg) fprintf(stderr, __FILE__ ":%03d: " msg "\n", __LINE__)
 
+/* print error with format (like printf) */
+#define perrorf(msg, ...) fprintf(stderr, __FILE__ ":%03d: " msg "\n", \
+                                  __LINE__, __VA_ARGS__)
+
 #endif  // ifndef __MAKRA_H__
