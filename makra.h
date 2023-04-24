@@ -14,6 +14,11 @@
 
 /* uzitecna makra pro druhy projekt predmetu IOS LS 2022/2023 */
 
+#ifndef __MAKRA_H__
+#define __MAKRA_H__
+
+#include <stdio.h>
+
 #ifndef NDEBUG
 
 /* logs plain string */
@@ -29,3 +34,8 @@
 #define logv(msg, ...) {}
 
 #endif
+
+/* print error */
+#define perror(msg) fprintf(stderr, __FILE__ ":%03d: " msg "\n", __LINE__)
+
+#endif  // ifndef __MAKRA_H__
