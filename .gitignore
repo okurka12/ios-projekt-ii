@@ -1,1 +1,4 @@
 .vscode
+proj2
+*.o
+*.elf
