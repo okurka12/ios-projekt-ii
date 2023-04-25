@@ -21,19 +21,45 @@
 
 #ifndef NDEBUG
 
-/* logs plain string */
+/**
+ * Poznamka:
+ * Zamerne nepouzivam usleep, protoze POSIX pravi ze je deprecated.
+*/
+
+/* deklarace nanosleep je v `time.h` z nejakeho duvodu podminena definici 
+   tohoto symbolu */
+#ifndef __USE_POSIX199309
+#define __USE_POSIX199309
+#endif  // ifndef __USE_POSIX199309
+#include <time.h>          // nanosleep
+#include <limits.h>
+#include <assert.h>
+
+/* logs plain string or does nothing if NDEBUG is defined */
 #define log(msg) fprintf(stderr, __FILE__ ":%03d: " msg "\n", __LINE__)
 
-/* logs variable(s) */
+/* logs variable(s) or does nothing if NDEBUG is defined */
 #define logv(msg, ...) fprintf(stderr, __FILE__ ":%03d: " msg "\n", \
                                __LINE__, __VA_ARGS__)
 
-#else
+/* a bilion (for use in db_sleep macro definition) */
+#define BLN 1000000000
+
+/* sleeps `t` (float) seconds or does nothing if NDEBUG is defined */
+#define db_sleep(t) \
+    nanosleep(&(struct timespec){ \
+                                 .tv_sec  = (long)(BLN * (t)) / BLN, \
+                                 .tv_nsec = (long)(BLN * (t)) % BLN \
+                                }, NULL)
+
+#else  // ifndef NDEBUG
 
 #define log(msg) {}
 #define logv(msg, ...) {}
+#define db_sleep(t) {}
 
-#endif
+#endif  // ifndef NDEBUG
+
 
 /* print error */
 #define perror(msg) fprintf(stderr, __FILE__ ":%03d: " msg "\n", __LINE__)
