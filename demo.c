@@ -79,7 +79,7 @@ int main() {
     or to create a new set.
     */
     if ((shmid = shmget(key, velikost, IPC_CREAT | 0777)) == -1) {
-        perrorf("shmget (errno %d)", errno);
+        perror("shmget failed");
         return 1;
     }
 
@@ -105,8 +105,7 @@ int main() {
        indicate the cause of the error.
     */
     if ((shm = shmat(shmid, NULL, 0)) == (void *) -1) {
-        perrorf("shmat (errno %d)", errno);
-        
+        perror("shmat failed");        
         return 1;
     }
 
