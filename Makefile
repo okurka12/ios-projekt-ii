@@ -46,3 +46,22 @@ $(FILENAME).o: proj2.c makra.h
 # link main
 $(FILENAME): $(FILENAME).o
 	$(CC) $(LDFLAGS) -o $(FILENAME) $(FILENAME).o
+
+
+# toto neodevzdavat
+# ------------------------------------------------------------------------------
+
+# compile demo
+demo.o: demo.c makra.h
+	$(CC) $(CFLAGS) -c -o demo.o demo.c
+
+# link demo
+demo.elf: demo.o
+	$(CC) $(LDFLAGS) -o demo.elf demo.o
+
+# make demo
+.ONESHELL: demo
+.PHONY: demo
+demo: demo.elf
+	./demo.elf
+	echo $$?
