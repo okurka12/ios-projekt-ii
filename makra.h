@@ -34,6 +34,7 @@
 #include <time.h>          // nanosleep
 #include <limits.h>
 #include <assert.h>
+#include <stdlib.h>
 
 /* logs plain string or does nothing if NDEBUG is defined */
 #define log(msg) fprintf(stderr, __FILE__ ":%03d: " msg "\n", __LINE__)
@@ -47,16 +48,22 @@
 
 /* sleeps `t` (float) seconds or does nothing if NDEBUG is defined */
 #define db_sleep(t) \
-    nanosleep(&(struct timespec){ \
-                                 .tv_sec  = (long)(BLN * (t)) / BLN, \
-                                 .tv_nsec = (long)(BLN * (t)) % BLN \
-                                }, NULL)
+   nanosleep(&(struct timespec){ \
+                                .tv_sec  = ((long)((float)BLN * (t))) / BLN, \
+                                .tv_nsec = ((long)((float)BLN * (t))) % BLN \
+                               }, NULL)
+
+/* sleeps for a random time between `a` and `b` seconds
+   or does nothing if NDEBUG is defined */
+#define db_sleep_rand(a, b) \
+   db_sleep((float)(a) + ((float)(rand()) / RAND_MAX) * ((float)(b) - (a)))
 
 #else  // ifndef NDEBUG
 
 #define log(msg) {}
 #define logv(msg, ...) {}
 #define db_sleep(t) {}
+#define db_sleep_rand(a, b) {}
 
 #endif  // ifndef NDEBUG
 
