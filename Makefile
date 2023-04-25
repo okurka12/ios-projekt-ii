@@ -11,8 +11,8 @@
 # prekladac
 CC=gcc
 
-#CFLAGS=-std=c17 -Wall -Wextra -pedantic -g -DNDEBUG
-CFLAGS=-std=c17 -Wall -Wextra -pedantic -g 
+#CFLAGS=-std=gnu99 -Wall -Wextra -pedantic -g -DNDEBUG
+CFLAGS=-std=gnu99 -Wall -Wextra -pedantic -g 
 
 LDFLAGS=-pthread
 
@@ -24,8 +24,8 @@ FILENAME=proj2
 all: $(FILENAME)
 
 # make run
-.ONESHELL: run
 .PHONY: run
+.ONESHELL: 
 run: all
 	./$(FILENAME)
 	echo return code $$?
@@ -33,7 +33,7 @@ run: all
 # make clean
 .PHONY: clean
 clean:
-	rm -f *.o $(FILENAME)
+	rm -f *.o *.elf $(FILENAME)
 
 # make remake
 .PHONY: remake
@@ -60,8 +60,8 @@ demo.elf: demo.o
 	$(CC) $(LDFLAGS) -o demo.elf demo.o
 
 # make demo
-.ONESHELL: demo
 .PHONY: demo
+.ONESHELL: 
 demo: demo.elf
 	./demo.elf
 	echo $$?
