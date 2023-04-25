@@ -11,7 +11,8 @@
 # prekladac
 CC=gcc
 
-CFLAGS=-std=c17 -Wall -Wextra -pedantic -g
+#CFLAGS=-std=c17 -Wall -Wextra -pedantic -g -DNDEBUG
+CFLAGS=-std=c17 -Wall -Wextra -pedantic -g 
 
 LDFLAGS=
 
@@ -33,6 +34,10 @@ run: all
 .PHONY: clean
 clean:
 	rm -f *.o $(FILENAME)
+
+# make remake
+.PHONY: remake
+remake: clean all
 
 # compile main
 $(FILENAME).o: proj2.c makra.h
