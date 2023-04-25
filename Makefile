@@ -14,7 +14,7 @@ CC=gcc
 #CFLAGS=-std=c17 -Wall -Wextra -pedantic -g -DNDEBUG
 CFLAGS=-std=c17 -Wall -Wextra -pedantic -g 
 
-LDFLAGS=
+LDFLAGS=-pthread
 
 # executable filename
 FILENAME=proj2
