@@ -3,3 +3,4 @@ proj2
 *.o
 *.elf
 smazat.c
+out.txt

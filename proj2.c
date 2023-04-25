@@ -19,113 +19,162 @@
 #include <stdio.h>
 #include <errno.h>  // errno
 
-#include <unistd.h>  // fork
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/types.h>
+#include <unistd.h>     // fork
+#include <sys/ipc.h>    // IPC ctl symboly
+#include <sys/shm.h>    // shmget shmat shmctl 
+#include <sys/types.h>  // fork
+#include <sys/wait.h>   // wait
+#include <semaphore.h>
 
-#define SLEEP_TIME 0.3
+/* pres tuto strukturu se zakaznici a urednici ocisluji 
+   a zjisti jestli je posta otevrena*/
+typedef struct {
+    // pocet zakazniku (kazdy prichozi zakaznik si vybere cislo o 1 vetsi)
+    sem_t zakaznici_sem;
+    unsigned int z;
 
-void child(char *shm, size_t velikost) {
-    for (unsigned int i = 0; i < velikost; i++) {
-        printf("Child: %u. prvek je %c\n", i, shm[i]);
-        db_sleep(SLEEP_TIME);
-    }
+    // pocet uredniku (taktez)
+    sem_t urednici_sem;
+    unsigned int u;
+
+    // otevreni posty
+    sem_t posta_otevrena_sem;
+    char posta_otevrena;
+
+} control_t;
+
+
+int urednik(control_t *ctl) {
+
+    // cislo ktere bude jednoznacne identifikovat urednika
+    unsigned int cislo;
+
+    // zamknout semafor
+    sem_wait(&(ctl->urednici_sem));
+
+    ctl->u++;
+    cislo = ctl->u;
+
+    // odemknout semafor
+    sem_post(&(ctl->urednici_sem));
+    db_sleep_rand(0.5, 0.8);
+
+    logv("jsem urednik cislo %d a koncim", cislo);
+
+    return 0;
 }
 
 
-void parent(char *shm, size_t velikost) {
-    for (unsigned int i = 0; i < velikost; i++) {
-        printf("Parent: pokusim se zmenit %u. prvek z %c na %c\n", 
-                i, shm[i], shm[i] + ('A' - 'a'));
-        shm[i] += 'A' - 'a';
-        db_sleep(SLEEP_TIME);
-    }
+int zakaznik(control_t *ctl) {
+
+    // cislo ktere bude jednoznacne identifikovat zakaznika
+    unsigned int cislo;
+
+    // zamknout semafor
+    sem_wait(&(ctl->zakaznici_sem));
+
+    ctl->z++;
+    cislo = ctl->z;
+
+    // odemknout semafor
+    sem_post(&(ctl->zakaznici_sem));
+    sleep_rand(0.5, 0.8);
+
+    logv("jsem zakaznik cislo %d a koncim", cislo);
+
+    return 0;
 }
+
+
+/* vrati ukazatel na vytvorenou a pripojenou sdilenou pamet, zapise jeji ID do
+   `shmid`, pri selhani vraci null */
+char *get_shm(size_t size, int *shmid) {
+    // ziskani segmentu shm
+    key_t key;             // sem nam da ftok IPC klic
+    char *shm;             // pointer na shared memory segment
+
+    // vytvoreni klice
+    if ((key = ftok(".", IPC_CREAT | 0777)) == -1) {
+        perror("ftok failed");
+        return NULL;
+    }
+
+    // vytvoreni segmentu sdilene pameti
+    if ((*shmid = shmget(key, size, IPC_CREAT | 0777)) == -1) {
+        perror("shmget failed");
+        return NULL;
+    }
+
+    // pripojeni onoho segmentu k tomuto procesu (a jeho potomkum)
+    if ((shm = shmat(*shmid, NULL, 0)) == (void *) -1) {
+        perror("shmat failed");
+        return NULL;
+    }
+
+    logv("vytvoren+pripojen shm segment (ID %d velikost %lu)", *shmid, size);
+    return shm;
+}
+
 
 
 int main() {
 
-    key_t key;             // sem nam da ftok IPC klic
-    size_t velikost = 64;  // velikost shared memory segmentu
-    int shmid;             // id vytvoreneho shm segmentu
-    char *shm;             // pointer na shared memory segment
+    // TODO: parsnout argumenty
     
-    /*
-    DESCRIPTION
-    The  ftok()  function uses the identity of the file named by the given 
-    pathname (which must refer to an existing, accessible file) and the least 
-    significant 8 bits of proj_id (which must be nonzero) to generate a  key_t
-    type System V IPC key, suitable for use with msgget(2), semget(2), or 
-    shmget(2).
+    unsigned int pocet_zakazniku = 3;
+    unsigned int pocet_uredniku = 3;
+    int shmid;
+    
 
-    The  resulting  value is the same for all pathnames that name the same 
-    file, when the same value of proj_id is used.  The value returned should 
-    be different when the (simultaneously existing) files or the project 
-    IDs differ.
-    */
-    if ((key = ftok(".", IPC_CREAT | 0777)) == -1) {
-        perror("ftok error");
+    // vytvoreni ukazatele na strukturu ve sdilene pameti 
+    control_t *ctl = (control_t *)get_shm(sizeof(control_t), &shmid);
+
+    // null check
+    if (ctl == NULL) {
         return 1;
     }
 
-    /*
-    DESCRIPTION
-    shmget()  returns  the identifier of the System V shared memory segment 
-    associated with the value of the argument key.  It may be used either 
-    to obtain the identifier of a previously created shared memory segment  
-    (when shmflg is zero and key does not have the value IPC_PRIVATE), 
-    or to create a new set.
-    */
-    if ((shmid = shmget(key, velikost, IPC_CREAT | 0777)) == -1) {
-        perrorf("shmget (errno %d)", errno);
-        return 1;
+    // inicializace semaforu pro zakazniky i uredniky
+    // nonzero pshared -> semafor je sdilen mezi procesy
+    sem_init(&(ctl->zakaznici_sem), 1, 1);
+    sem_init(&(ctl->urednici_sem), 1, 1);
+
+    // inicializace poctu zakazniku a uredniku
+    ctl->z = 0;
+    ctl->u = 0;
+
+    // vytvoreni zakazniku
+    int pid;
+    for (unsigned int i = 0; i < pocet_zakazniku; i++) {
+        pid = fork();
+
+        // pokud jsem dite
+        if (pid == 0) {
+            return zakaznik(ctl);  
+        }
     }
 
-    /* 
-    DESCRIPTION
-    shmat()
-       shmat()  attaches  the  System V shared memory segment identified by 
-       shmid to the address space of the calling process.  The attaching 
-       address is specified by shmaddr with one of the following criteria:
+    // vytvoreni uredniku
+    for (unsigned int i = 0; i < pocet_uredniku; i++) {
+        pid = fork();
 
-       - If shmaddr is NULL, the system chooses a suitable (unused) 
-       page-aligned address to attach the segment.
-
-       - If shmaddr isn't NULL and SHM_RND is specified in shmflg, the attach
-       occurs at the address equal to  shmaddr rounded down to the 
-       nearest multiple of SHMLBA.
-
-       - Otherwise, shmaddr must be a page-aligned address at which the attach 
-       occurs.
-
-       On success, shmat() returns the address of the attached shared memory 
-       segment; on error,  (void *) -1  is  returned, and errno is set to 
-       indicate the cause of the error.
-    */
-    if ((shm = shmat(shmid, NULL, 0)) == (void *) -1) {
-        perrorf("shmat (errno %d)", errno);
-        
-        return 1;
+        // pokud jsem dite
+        if (pid == 0) {
+            return urednik(ctl);
+        }
     }
 
-    // inicializace bytu shm segmentu
-    for (unsigned int i = 0; i < velikost; i++) {
-        shm[i] = 'a' + i % ('z' - 'a');
-        logv("nastavuji %u. prvek na %c", i, 'a' + i % ('z' - 'a'));
-    }
-    
-    // vytvoreni jednoho potomka
-    pid_t pid = fork();
-
-    if (pid == 0) {
-        child(shm, velikost);
-    } else {
-        parent(shm, velikost);
+    // pockani na vsechny zakazniky a uredniky nez skonci
+    for (unsigned int i = 0; i < pocet_uredniku + pocet_zakazniku; i++) {
+        wait(NULL);
     }
 
-    
+    logv("jsem rodic a nez skoncim, vezte ze bylo %d zakazniku a %d uredniku", 
+         ctl->z, ctl->u);
 
+    log("odstranuji shm segment");
+    shmdt(ctl);
+    shmctl(shmid, IPC_RMID, NULL);
 
     return 0;
 }
