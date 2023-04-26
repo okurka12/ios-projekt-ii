@@ -15,6 +15,7 @@
 /* hlavni soubor pro druhy projekt predmetu IOS LS 2022/2023 */
 
 #include "makra.h"
+#include "proj2.h"
 
 #include <stdio.h>
 #include <errno.h>  // errno
@@ -85,61 +86,28 @@ int zakaznik(control_t *ctl) {
     return 0;
 }
 
-
-/* vrati ukazatel na vytvorenou a pripojenou sdilenou pamet, zapise jeji ID do
-   `shmid`, pri selhani vraci null */
-char *get_shm(size_t size, int *shmid) {
-    // ziskani segmentu shm
-    key_t key;             // sem nam da ftok IPC klic
-    char *shm;             // pointer na shared memory segment
-
-    // vytvoreni klice
-    if ((key = ftok(".", IPC_CREAT | 0777)) == -1) {
-        perror("ftok failed");
-        return NULL;
-    }
-
-    // vytvoreni segmentu sdilene pameti
-    if ((*shmid = shmget(key, size, IPC_CREAT | 0777)) == -1) {
-        perror("shmget failed");
-        return NULL;
-    }
-
-    // pripojeni onoho segmentu k tomuto procesu (a jeho potomkum)
-    if ((shm = shmat(*shmid, NULL, 0)) == (void *) -1) {
-        perror("shmat failed");
-        return NULL;
-    }
-
-    logv("vytvoren+pripojen shm segment (ID %d velikost %lu)", *shmid, size);
-    return shm;
-}
-
-
-
 int main() {
 
     // TODO: parsnout argumenty
     
     unsigned int pocet_zakazniku = 3;
     unsigned int pocet_uredniku = 3;
-    int shmid;
     
-
-    // vytvoreni ukazatele na strukturu ve sdilene pameti 
-    control_t *ctl = (control_t *)get_shm(sizeof(control_t), &shmid);
-
-    // null check
-    if (ctl == NULL) {
+    // ziskani sdilene pameti pro control_t
+    shm_t control;
+    if (get_shm(sizeof(control_t), &control) == NULL) {
         return 1;
     }
 
-    // inicializace semaforu pro zakazniky i uredniky
+    // cast do ukazatele (ten od nyni ukazuje do sdilene pameti)
+    control_t *ctl = (control_t *)(control.shm);
+    
+    // inicializace semaforu v control_t pro zakazniky i uredniky
     // nonzero pshared -> semafor je sdilen mezi procesy
     sem_init(&(ctl->zakaznici_sem), 1, 1);
     sem_init(&(ctl->urednici_sem), 1, 1);
 
-    // inicializace poctu zakazniku a uredniku
+    // inicializace poctu zakazniku a uredniku v control_t
     ctl->z = 0;
     ctl->u = 0;
 
@@ -172,9 +140,8 @@ int main() {
     logv("jsem rodic a nez skoncim, vezte ze bylo %d zakazniku a %d uredniku", 
          ctl->z, ctl->u);
 
-    log("odstranuji shm segment");
-    shmdt(ctl);
-    shmctl(shmid, IPC_RMID, NULL);
+    // uvolneni shm
+    free_shm(&control);
 
     return 0;
 }

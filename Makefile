@@ -43,9 +43,13 @@ remake: clean all
 $(FILENAME).o: proj2.c makra.h
 	$(CC) $(CFLAGS) -c -o $(FILENAME).o proj2.c
 
+# compile shm
+shm.o: shm.c proj2.h makra.h
+	$(CC) $(CFLAGS) -c -o shm.o shm.c
+
 # link main
-$(FILENAME): $(FILENAME).o
-	$(CC) $(LDFLAGS) -o $(FILENAME) $(FILENAME).o
+$(FILENAME): $(FILENAME).o shm.o
+	$(CC) $(LDFLAGS) -o $(FILENAME) $(FILENAME).o shm.o
 
 
 # toto neodevzdavat
