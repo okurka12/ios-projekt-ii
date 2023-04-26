@@ -16,6 +16,7 @@
 
 #include "makra.h"
 #include "proj2.h"
+#include "fronta.h"
 
 #include <stdio.h>
 #include <errno.h>  // errno
@@ -27,8 +28,14 @@
 #include <sys/wait.h>   // wait
 #include <semaphore.h>
 
-/* pres tuto strukturu se zakaznici a urednici ocisluji 
-   a zjisti jestli je posta otevrena*/
+/**
+ * Poznamka:
+ * tato struktura musi byt tady protoze kdybych ji dal do proj2.h 
+ * tak je to cyklicky import a davat to do fronta.h je nesmysl
+*/
+
+/* pres tuto strukturu se zakaznici a urednici ocisluji a zjisti jestli je 
+posta otevrena, a taky si najdou ukazatel na frontu, do ktere chteji jit */
 typedef struct {
     // pocet zakazniku (kazdy prichozi zakaznik si vybere cislo o 1 vetsi)
     sem_t zakaznici_sem;
@@ -42,8 +49,17 @@ typedef struct {
     sem_t posta_otevrena_sem;
     char posta_otevrena;
 
-} control_t;
+    // --- fronty maji pristupovy semafor v sobe ---
+    // fronta listovni sluzby
+    queue_t *listovni_sluzby;
 
+    // fronta baliku
+    queue_t *baliky;
+
+    // fronta peneznich slzueb
+    queue_t *penezni_sluzby;
+
+} control_t;
 
 int urednik(control_t *ctl) {
 
@@ -102,14 +118,36 @@ int main() {
     // cast do ukazatele (ten od nyni ukazuje do sdilene pameti)
     control_t *ctl = (control_t *)(control.shm);
     
-    // inicializace semaforu v control_t pro zakazniky i uredniky
+    // inicializace semaforu v ctl pro zakazniky i uredniky i otevreni posty
     // nonzero pshared -> semafor je sdilen mezi procesy
     sem_init(&(ctl->zakaznici_sem), 1, 1);
     sem_init(&(ctl->urednici_sem), 1, 1);
+    sem_init(&(ctl->posta_otevrena_sem), 1, 1);
 
-    // inicializace poctu zakazniku a uredniku v control_t
+    // inicializace poctu zakazniku a uredniku v control_t a otevreni posty
     ctl->z = 0;
     ctl->u = 0;
+    ctl->posta_otevrena = 1;
+
+    // inicializace tri front (tzn ziskani sdilene pameti pro ne)
+    ctl->listovni_sluzby = queue_init(pocet_zakazniku);
+    if (ctl->listovni_sluzby == NULL) {
+        free_shm(&control);
+        return 1;
+    }
+    ctl->baliky = queue_init(pocet_zakazniku);
+    if (ctl->baliky == NULL) {
+        free_shm(&control);
+        return 1;
+    }
+    ctl->penezni_sluzby = queue_init(pocet_zakazniku);
+    if (ctl->penezni_sluzby == NULL) {
+        free_shm(&control);
+        return 1;
+    }
+
+    // OD TED BUDE APLIKACE VICEPROCESOVA (doted nebyla)
+    // -------------------------------------------------------------------------
 
     // vytvoreni zakazniku
     int pid;
@@ -140,7 +178,12 @@ int main() {
     logv("jsem rodic a nez skoncim, vezte ze bylo %d zakazniku a %d uredniku", 
          ctl->z, ctl->u);
 
-    // uvolneni shm
+    // uvolneni front
+    free_shm(&(ctl->listovni_sluzby->shm));
+    free_shm(&(ctl->baliky->shm));
+    free_shm(&(ctl->penezni_sluzby->shm));
+
+    // uvolneni ctl
     free_shm(&control);
 
     return 0;
