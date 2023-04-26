@@ -28,6 +28,10 @@
 #include <sys/wait.h>   // wait
 #include <semaphore.h>
 
+/* zkontroluje co vratil semaphore lock/unlock POZOR toto makro vola return */
+#define check_semaphore(s) if ((s) == -1) \
+    {perror("semaphore_post/semaphore_wait failed"); return 1;}
+
 /**
  * Poznamka:
  * tato struktura musi byt tady protoze kdybych ji dal do proj2.h 
@@ -66,15 +70,13 @@ int urednik(control_t *ctl) {
     // cislo ktere bude jednoznacne identifikovat urednika
     unsigned int cislo;
 
-    // zamknout semafor
-    sem_wait(&(ctl->urednici_sem));
-
+    // ocislovat se
+    check_semaphore(sem_wait(&(ctl->urednici_sem)));  // lock
     ctl->u++;
     cislo = ctl->u;
-
-    // odemknout semafor
-    sem_post(&(ctl->urednici_sem));
+    check_semaphore(sem_post(&(ctl->urednici_sem)));  // unlock
     db_sleep_rand(0.5, 0.8);
+
 
     logv("jsem urednik cislo %d a koncim", cislo);
 
@@ -82,47 +84,65 @@ int urednik(control_t *ctl) {
 }
 
 
-int zakaznik(control_t *ctl) {
+int zakaznik(control_t *ctl, unsigned int tz) {
 
     // cislo ktere bude jednoznacne identifikovat zakaznika
     unsigned int cislo;
+    char otevreno = 0;
 
-    // zamknout semafor
-    sem_wait(&(ctl->zakaznici_sem));
-
+    // ocislovat se
+    check_semaphore(sem_wait(&(ctl->zakaznici_sem)));  // lock
     ctl->z++;
     cislo = ctl->z;
+    check_semaphore(sem_post(&(ctl->zakaznici_sem)));  // unlock
+    db_sleep_rand(0.5, 0.8);
 
-    // odemknout semafor
-    sem_post(&(ctl->zakaznici_sem));
-    sleep_rand(0.5, 0.8);
+    printf("Z %u: started\n", cislo);
+    sleep_rand_ms(0, tz);
+    
+    // zjisti jestli je otevreno
+    check_semaphore(sem_wait(&(ctl->posta_otevrena_sem)));  // lock
+    otevreno = ctl->posta_otevrena;
+    check_semaphore(sem_post(&(ctl->posta_otevrena_sem)));  // unlock
+
+    if (otevreno) {
+        printf("Z %u posta ma otevreno\n", cislo);
+    } else {
+        printf("Z %u: going home\n", cislo);
+    }
 
     logv("jsem zakaznik cislo %d a koncim", cislo);
 
     return 0;
 }
 
-int main() {
 
-    // TODO: parsnout argumenty
-    
-    unsigned int pocet_zakazniku = 3;
-    unsigned int pocet_uredniku = 3;
-    
+/* ziska veskerou sdilenou pamet: struktura control_t a vsechny fronty v ni,
+   vsechno inicializuje, pri neuspechu vraci NULL*/
+control_t *ctl_init(unsigned int pocet_zakazniku, shm_t *control_p) {
+
     // ziskani sdilene pameti pro control_t
-    shm_t control;
-    if (get_shm(sizeof(control_t), &control) == NULL) {
-        return 1;
+    if (get_shm(sizeof(control_t), control_p) == NULL) {
+        return NULL;
     }
 
     // cast do ukazatele (ten od nyni ukazuje do sdilene pameti)
-    control_t *ctl = (control_t *)(control.shm);
+    control_t *ctl = (control_t *)(control_p->shm);
     
     // inicializace semaforu v ctl pro zakazniky i uredniky i otevreni posty
     // nonzero pshared -> semafor je sdilen mezi procesy
-    sem_init(&(ctl->zakaznici_sem), 1, 1);
-    sem_init(&(ctl->urednici_sem), 1, 1);
-    sem_init(&(ctl->posta_otevrena_sem), 1, 1);
+    if (sem_init(&(ctl->zakaznici_sem), 1, 1) == -1) {
+        perror("sem_init failed");
+        return NULL;
+    }
+    if (sem_init(&(ctl->urednici_sem), 1, 1) == -1) {
+        perror("sem_init failed");
+        return NULL;
+    }
+    if (sem_init(&(ctl->posta_otevrena_sem), 1, 1) == -1) {
+        perror("sem_init failed");
+        return NULL;
+    }
 
     // inicializace poctu zakazniku a uredniku v control_t a otevreni posty
     ctl->z = 0;
@@ -132,19 +152,34 @@ int main() {
     // inicializace tri front (tzn ziskani sdilene pameti pro ne)
     ctl->listovni_sluzby = queue_init(pocet_zakazniku);
     if (ctl->listovni_sluzby == NULL) {
-        free_shm(&control);
-        return 1;
+        free_shm(control_p);
+        return NULL;
     }
     ctl->baliky = queue_init(pocet_zakazniku);
     if (ctl->baliky == NULL) {
-        free_shm(&control);
-        return 1;
+        free_shm(control_p);
+        return NULL;
     }
     ctl->penezni_sluzby = queue_init(pocet_zakazniku);
     if (ctl->penezni_sluzby == NULL) {
-        free_shm(&control);
-        return 1;
+        free_shm(control_p);
+        return NULL;
     }
+
+    return ctl;
+}
+
+
+int main() {
+
+    // TODO: parsnout argumenty
+    unsigned int tz = 3000;
+    unsigned int f = 3000;
+    unsigned int pocet_zakazniku = 3;
+    unsigned int pocet_uredniku = 3;
+    
+    shm_t ctl_shm;
+    control_t *ctl = ctl_init(pocet_zakazniku, &ctl_shm);
 
     // OD TED BUDE APLIKACE VICEPROCESOVA (doted nebyla)
     // -------------------------------------------------------------------------
@@ -156,7 +191,7 @@ int main() {
 
         // pokud jsem dite
         if (pid == 0) {
-            return zakaznik(ctl);  
+            return zakaznik(ctl, tz);  
         }
     }
 
@@ -169,6 +204,12 @@ int main() {
             return urednik(ctl);
         }
     }
+
+    // spanek a pak uzavreni posty
+    sleep_rand_ms(0, f);
+    check_semaphore(sem_wait(&(ctl->posta_otevrena_sem)));
+    ctl->posta_otevrena = 0;
+    check_semaphore(sem_post(&(ctl->posta_otevrena_sem)));
 
     // pockani na vsechny zakazniky a uredniky nez skonci
     for (unsigned int i = 0; i < pocet_uredniku + pocet_zakazniku; i++) {
@@ -184,7 +225,7 @@ int main() {
     free_shm(&(ctl->penezni_sluzby->shm));
 
     // uvolneni ctl
-    free_shm(&control);
+    free_shm(&ctl_shm);
 
     return 0;
 }
