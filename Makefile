@@ -11,8 +11,8 @@
 # prekladac
 CC=gcc
 
-#CFLAGS=-std=gnu99 -Wall -Wextra -pedantic -g -DNDEBUG
-CFLAGS=-std=gnu99 -Wall -Wextra -pedantic -g 
+CFLAGS=-std=gnu99 -Wall -Wextra -pedantic -g -DNDEBUG
+#CFLAGS=-std=gnu99 -Wall -Wextra -pedantic -g 
 
 LDFLAGS=-pthread
 
@@ -63,6 +63,10 @@ $(FILENAME): $(FILENAME).o shm.o fronta.o
 submit:
 	rm -f xpavli0a.zip
 	zip xpavli0a.zip *.c *.h Makefile
+
+.PHONY: copy_home
+copy_home: submit
+	cp xpavli0a.zip /home/vita/ios_proj2/xpavli0a.zip
 
 # scp the archive to eva (scp prompts for password!)
 .PHONY: scp_eva

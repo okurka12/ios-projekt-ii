@@ -49,13 +49,11 @@ queue_t *queue_init(unsigned int size) {
     // inicializovat semafor pro pristup k fronte
     sem_init(&(queue->queue_sem), 1, 1);
 
-    logv("queue_init q=%p q->arr=%p", (void *)queue, (void *)(queue->arr));
     return queue;
 }
 
 
 queue_ele_t *queue_add(queue_t *q, unsigned int id) {
-    logv("do fronty %p se chce zaradit prvek %u", (void *)q, id);
     queue_ele_t *out;
 
     // zamknout semafor
