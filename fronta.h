@@ -44,7 +44,7 @@ typedef struct {
     unsigned int start;  // zacatek
     unsigned int end;    // konec fronty (kolik je v ni prvku)
     shm_t shm;           // sdilena pamet v niz se tato struktura bude nachazet
-    queue_ele_t *arr;   // samotna data fronty (flexible array member)
+    queue_ele_t arr[];   // samotna data fronty (flexible array member)
 } queue_t;
 
 /* vytvori, pripoji a inicializuje frontu ve sdilene pameti, vrati na ni 

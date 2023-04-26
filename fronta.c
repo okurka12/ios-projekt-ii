@@ -39,8 +39,7 @@ queue_t *queue_init(unsigned int size) {
     queue_t *queue = (queue_t *)queue_shm.shm;
     queue->len   = size;
     queue->start = 0;
-    queue->arr   = (queue_ele_t *)(&(queue->arr));
-    queue->shm   = queue_shm; 
+    queue->shm   = queue_shm;
     
     // inicializovat id prvku na nulu: vyznam: ve fronte nikdo neni
     for (unsigned int i = 0; i < size; i++) {
@@ -50,22 +49,27 @@ queue_t *queue_init(unsigned int size) {
     // inicializovat semafor pro pristup k fronte
     sem_init(&(queue->queue_sem), 1, 1);
 
+    logv("queue_init q=%p q->arr=%p", (void *)queue, (void *)(queue->arr));
     return queue;
 }
 
 
 queue_ele_t *queue_add(queue_t *q, unsigned int id) {
-
+    logv("do fronty %p se chce zaradit prvek %u", (void *)q, id);
     queue_ele_t *out;
 
     // zamknout semafor
     check_sem_succes(sem_wait(&(q->queue_sem)));
     
-    q->arr[q->end].n = id;
-    out = &(q->arr[q->end]);
-    q->end++;
-    assert(q->end <= q->len);
-    logv("do fronty %p se zaradil prvek %u", (void *)q, id);    
+    if (q->end < q->len) {
+        q->arr[q->end].n = id;
+        out = &(q->arr[q->end]);
+        q->end++;
+        logv("do fronty %p se zaradil prvek %u", (void *)q, id);        
+    } else {
+        log("nastalo neco co by nemelo nastavat");
+        out = NULL;
+    }
 
     // odemknout semafor
     check_sem_succes(sem_post(&(q->queue_sem)));
@@ -75,6 +79,7 @@ queue_ele_t *queue_add(queue_t *q, unsigned int id) {
 
 
 queue_ele_t *queue_serve(queue_t *q) {
+    logv("q=%p q->arr=%p", (void *)q, (void *)(q->arr));
 
     // kdyz je fronta prazdna
     if (queue_length(q) == 0) {
@@ -104,6 +109,7 @@ unsigned int queue_length(queue_t *q) {
 
     // zamknout semafor
     if (sem_wait(&(q->queue_sem)) == -1) {
+        log("pozor selhava sem_wait");
         return 0;
     }
 
@@ -111,6 +117,7 @@ unsigned int queue_length(queue_t *q) {
 
     // odemknout semafor
     if (sem_post(&(q->queue_sem)) == -1) {
+        log("pozor selhava sem_post");
         return 0;
     }
 
