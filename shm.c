@@ -23,17 +23,8 @@
 
 shm_t *get_shm(const size_t size, shm_t *t) {
     
-    // klic pro shm
-    int key = ftok(".", IPC_CREAT | 0777);
-
-    // null check
-    if (key == -1) {
-        perror("ftok failed");
-        return NULL;
-    }
-
     // vytvoreni segmentu
-    t->shmid = shmget(key, size, IPC_CREAT | 0777);
+    t->shmid = shmget(IPC_PRIVATE, size, IPC_CREAT | IPC_EXCL | 0777);
 
     // -1 check
     if (t->shmid == -1) {
@@ -59,8 +50,12 @@ shm_t *get_shm(const size_t size, shm_t *t) {
 
 /* odpoji a zrusi shm segment */
 void free_shm(shm_t *t) {
+
+    // to potrebuji lokalne protoze potrebuju prvne detach a pak odstranit
+    // a po detachi k tomu obviously nemuzu pristoupit
+    int shmid = t->shmid;
     logv("uvolnuji shm segment (ID %d, velikost %lu, adresa %p)", 
-         t->shmid, t->size, t->shm);
+         shmid, t->size, t->shm);
     shmdt(t->shm);
-    shmctl(t->shmid, IPC_RMID, NULL);
+    shmctl(shmid, IPC_RMID, NULL);
 }
