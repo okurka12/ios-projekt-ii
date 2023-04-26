@@ -59,6 +59,16 @@ $(FILENAME): $(FILENAME).o shm.o fronta.o
 # toto neodevzdavat
 # ------------------------------------------------------------------------------
 
+.PHONY: submit
+submit:
+	rm -f xpavli0a.zip
+	zip xpavli0a.zip *.c *.h Makefile
+
+# scp the archive to eva (scp prompts for password!)
+.PHONY: scp_eva
+scp_eva: submit
+	scp xpavli0a.zip xpavli0a@eva.fit.vutbr.cz:~/ios/proj2/xpavli0a.zip
+
 # compile demo
 demo.o: demo.c makra.h
 	$(CC) $(CFLAGS) -c -o demo.o demo.c
