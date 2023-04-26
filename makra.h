@@ -48,7 +48,10 @@
 
 /* sleeps for a random time between `a` and `b` seconds */
 #define sleep_rand(a, b) \
-   db_sleep((float)(a) + ((float)(rand()) / RAND_MAX) * ((float)(b) - (a)))
+   sleep_s((float)(a) + ((float)(rand()) / RAND_MAX) * ((float)(b) - (a)))
+
+/* sleeps for random amount of milliseconds between `a` and `b` */
+#define sleep_rand_ms(a, b) sleep_rand(0.001 * (a), 0.001 * (b))
 
 
 /* tato makra jsou jenom pro debugovani */
