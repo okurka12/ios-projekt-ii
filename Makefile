@@ -47,9 +47,13 @@ $(FILENAME).o: proj2.c makra.h
 shm.o: shm.c proj2.h makra.h
 	$(CC) $(CFLAGS) -c -o shm.o shm.c
 
+# compile fronta
+fronta.o: fronta.c fronta.h proj2.h makra.h
+	$(CC) $(CFLAGS) -c -o fronta.o fronta.c
+
 # link main
-$(FILENAME): $(FILENAME).o shm.o
-	$(CC) $(LDFLAGS) -o $(FILENAME) $(FILENAME).o shm.o
+$(FILENAME): $(FILENAME).o shm.o fronta.o
+	$(CC) $(LDFLAGS) -o $(FILENAME) $(FILENAME).o shm.o fronta.o
 
 
 # toto neodevzdavat
