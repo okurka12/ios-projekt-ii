@@ -138,7 +138,7 @@ int urednik(control_t *ctl, unsigned int tu) {
                 break;
             case 0:
                 otevreno = 0;
-                return 0;
+                break;
             case 2:
                 return 2;
             default:
@@ -157,6 +157,10 @@ int urednik(control_t *ctl, unsigned int tu) {
                 zakaznik = queue_serve(ctl->penezni_sluzby);
                 break;
             case 4:
+                if (!otevreno) {
+                    printf("U %u: going home\n", cislo);
+                    return 0;
+                }
                 printf("U %u: taking break\n", cislo);
                 sleep_rand_ms(0, tu);
                 printf("U %u: break finished\n", cislo);
@@ -177,7 +181,7 @@ int urednik(control_t *ctl, unsigned int tu) {
         sleep_rand_ms(0, 10);  // doba vykonavani sluzby
         printf("U %u: service finished\n", cislo);
         
-    } while (otevreno);
+    } while (1);
 
 
     logv("jsem urednik cislo %d a koncim", cislo);
