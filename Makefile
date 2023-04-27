@@ -27,7 +27,7 @@ all: $(FILENAME)
 .PHONY: run
 .ONESHELL: 
 run: all
-	./$(FILENAME)
+	./$(FILENAME) 4 2 1000 100 1500
 	echo return code $$?
 
 # make clean
@@ -66,7 +66,9 @@ submit:
 
 .PHONY: copy_home
 copy_home: submit
+	rm -r -f /home/vita/ios_proj2/*
 	cp xpavli0a.zip /home/vita/ios_proj2/xpavli0a.zip
+	cp /home/vita/ios_testy/tester.sh /home/vita/ios_proj2/tester.sh
 
 # scp the archive to eva (scp prompts for password!)
 .PHONY: scp_eva
