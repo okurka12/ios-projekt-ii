@@ -7,7 +7,7 @@
 **  2023-04-24  **
 **              **
 ** Last edited: **
-**  2023-04-24  **
+**  2023-04-27  **
 *****************/
 // Fakulta: FIT VUT
 // Vyvijeno s gcc 10.2.1 na Debian GNU/Linux 11
@@ -32,6 +32,14 @@
 #define check_semaphore(s) if ((s) == -1) \
     {perror("semaphore_{post|wait|init} failed"); return 2;}
 
+/* vytiskne akci do `file`, pozor, muze zavolat return */
+#define print_file(ctl, file, msg, ...) \
+    check_semaphore(sem_wait(&(ctl->action_sem))); \
+    ctl->n_action++; \
+    fprintf(file, "%u: " msg, ctl->n_action, __VA_ARGS__); \
+    fflush(file); \
+    check_semaphore(sem_post(&(ctl->action_sem)))
+
 /**
  * Poznamka:
  * tato struktura musi byt tady protoze kdybych ji dal do proj2.h 
@@ -41,6 +49,11 @@
 /* pres tuto strukturu se zakaznici a urednici ocisluji a zjisti jestli je 
 posta otevrena, a taky si najdou ukazatel na frontu, do ktere chteji jit */
 typedef struct {
+
+    // kolikata je to akce
+    sem_t action_sem;
+    unsigned int n_action;
+
     // pocet zakazniku (kazdy prichozi zakaznik si vybere cislo o 1 vetsi)
     sem_t zakaznici_sem;
     unsigned int z;
@@ -64,6 +77,16 @@ typedef struct {
     queue_t *penezni_sluzby;
 
 } control_t;
+
+
+/* struktura pro argumenty programu */
+typedef struct {
+    unsigned int nz;
+    unsigned int nu;
+    unsigned int tz;
+    unsigned int tu;
+    unsigned int f;
+} args_t;
 
 
 /* je-li otevreno, vrati 1, jestli ne, vrati 0, doslo-li k chybe, vrati 2 */
@@ -113,7 +136,12 @@ char vyber_frontu(control_t *ctl) {
 }
 
 
-int urednik(control_t *ctl, unsigned int tu) {
+int urednik(control_t *ctl, unsigned int tu, FILE *file) {
+
+    /* maly delay aby cisla byla jakz takz nahodna */
+    for (int i = 0; i < 100; i++) {
+        rand();
+    }
 
     // cislo ktere bude jednoznacne identifikovat urednika
     unsigned int cislo;
@@ -125,10 +153,10 @@ int urednik(control_t *ctl, unsigned int tu) {
     check_semaphore(sem_wait(&(ctl->urednici_sem)));  // lock
     ctl->u++;
     cislo = ctl->u;
+    print_file(ctl, file, "U %u: started\n", cislo);
     check_semaphore(sem_post(&(ctl->urednici_sem)));  // unlock
     db_sleep_rand(0.1, 0.2);
 
-    printf("U %u: started\n", cislo);
 
     do {
 
@@ -158,12 +186,12 @@ int urednik(control_t *ctl, unsigned int tu) {
                 break;
             case 4:
                 if (!otevreno) {
-                    printf("U %u: going home\n", cislo);
+                    print_file(ctl, file, "U %u: going home\n", cislo);
                     return 0;
                 }
-                printf("U %u: taking break\n", cislo);
+                print_file(ctl, file, "U %u: taking break\n", cislo);
                 sleep_rand_ms(0, tu);
-                printf("U %u: break finished\n", cislo);
+                print_file(ctl, file, "U %u: break finished\n",  cislo);
                 continue;
             default:
                 log("nastal stav co by nemel nastavat");
@@ -176,10 +204,10 @@ int urednik(control_t *ctl, unsigned int tu) {
 
         // odemknout zakaznikovi semafor (zavolat ho)
         check_semaphore(sem_post(&(zakaznik->qele_sem)));
-        printf("U %u: serving a service of type %hhd\n", 
+        print_file(ctl, file, "U %u: serving a service of type %hhd\n", 
                cislo, vybrana_fronta);
         sleep_rand_ms(0, 10);  // doba vykonavani sluzby
-        printf("U %u: service finished\n", cislo);
+        print_file(ctl, file, "U %u: service finished\n", cislo);
         
     } while (1);
 
@@ -190,7 +218,7 @@ int urednik(control_t *ctl, unsigned int tu) {
 }
 
 
-int zakaznik(control_t *ctl, unsigned int tz) {
+int zakaznik(control_t *ctl, unsigned int tz, FILE *file) {
 
     // cislo ktere bude jednoznacne identifikovat zakaznika
     unsigned int cislo;
@@ -204,10 +232,10 @@ int zakaznik(control_t *ctl, unsigned int tz) {
     check_semaphore(sem_wait(&(ctl->zakaznici_sem)));  // lock
     ctl->z++;
     cislo = ctl->z;
+    print_file(ctl, file, "Z %u: started\n", cislo);
     check_semaphore(sem_post(&(ctl->zakaznici_sem)));  // unlock
     db_sleep_rand(0.1, 0.2);
 
-    printf("Z %u: started\n", cislo);
     sleep_rand_ms(0, tz);
     
     // zjisti jestli je otevreno
@@ -231,9 +259,9 @@ int zakaznik(control_t *ctl, unsigned int tz) {
     // je-li otevreno, zvolit aktivitu, jinak jit domu
     if (otevreno) {
         aktivita = (rand() % 3) + 1;
-        logv("zakaznuk %u si vybral frontu %hhd", cislo, aktivita);
+        logv("zakaznik %u si vybral frontu %hhd", cislo, aktivita);
     } else {
-        printf("Z %u: going home\n", cislo);
+        print_file(ctl, file, "Z %u: going home\n", cislo);
         return 0;
     }
 
@@ -253,7 +281,8 @@ int zakaznik(control_t *ctl, unsigned int tz) {
             q = ctl->listovni_sluzby;
             break;
     }
-    printf("Z %u: entering office for a service %hhd\n", cislo, aktivita);
+    print_file(ctl, file, "Z %u: entering office for a service %hhd\n", cislo, 
+               aktivita);
 
     // zaradit se do vybrane fronty a cekat na vyvolani
     q_ele = queue_add(q, cislo);
@@ -263,11 +292,11 @@ int zakaznik(control_t *ctl, unsigned int tz) {
     
     check_semaphore(sem_init(&(q_ele->qele_sem), 1, 0));
     check_semaphore(sem_wait(&(q_ele->qele_sem)));
-    printf("Z %u: called by office worker\n", cislo);
+    print_file(ctl, file, "Z %u: called by office worker\n", cislo);
 
     sleep_rand_ms(0, 10);
 
-    printf("Z %u: going home\n", cislo);
+    print_file(ctl, file, "Z %u: going home\n", cislo);
 
     return 0;
 }
@@ -276,9 +305,6 @@ int zakaznik(control_t *ctl, unsigned int tz) {
 /* ziska veskerou sdilenou pamet: struktura control_t a vsechny fronty v ni,
    vsechno inicializuje, pri neuspechu vraci NULL*/
 control_t *ctl_init(unsigned int pocet_zakazniku, shm_t *control_p) {
-    for (int i = 0; i < 10; i++) {
-        logv("random %d", rand());
-    }
 
     // ziskani sdilene pameti pro control_t
     if (get_shm(sizeof(control_t), control_p) == NULL) {
@@ -302,11 +328,16 @@ control_t *ctl_init(unsigned int pocet_zakazniku, shm_t *control_p) {
         perror("sem_init failed");
         return NULL;
     }
+    if (sem_init(&(ctl->action_sem), 1, 1) == -1) {
+        perror("sem_init failed");
+        return NULL;
+    }
 
     // inicializace poctu zakazniku a uredniku v control_t a otevreni posty
     ctl->z = 0;
     ctl->u = 0;
     ctl->posta_otevrena = 1;
+    ctl->n_action = 0;
 
     // inicializace tri front (tzn ziskani sdilene pameti pro ne)
     ctl->listovni_sluzby = queue_init(pocet_zakazniku);
@@ -329,57 +360,110 @@ control_t *ctl_init(unsigned int pocet_zakazniku, shm_t *control_p) {
 }
 
 
-int main() {
+/* zpracuje argumenty programu, pri uspechu vraci 1, jinak 0 */
+int parse_args(int argc, char **argv, args_t *arg_struct) {
+    if (argc != 6) {
+        fprintf(stderr, "Usage: %s NZ NU TZ TU F\n", argv[0]);
+        return 0;
+    }
+    int error = 0;
+    if (sscanf(argv[1], "%u", &(arg_struct->nz)) != 1) {
+        error = 1;
+    }
+    if (sscanf(argv[1], "%u", &(arg_struct->nu)) != 1) {
+        error = 1;
+    }
+    if (sscanf(argv[1], "%u", &(arg_struct->tz)) != 1) {
+        error = 1;
+    }
+    if (sscanf(argv[1], "%u", &(arg_struct->tu)) != 1) {
+        error = 1;
+    }
+    if (sscanf(argv[1], "%u", &(arg_struct->f)) != 1) {
+        error = 1;
+    }
+    if (
+        !(arg_struct->tz <= 0 && arg_struct->tz <= 10000) ||
+        !(arg_struct->tu <= 0 && arg_struct->tu <= 100) ||
+        !(arg_struct->f <= 0 && arg_struct->f <= 10000)
+    ) {
+        error = 1;
+    }
+    if (error) {
+        return 1;
+    } else {
+        fprintf(stderr, "Invalid args\n");
+        return 0;
+    }
+
+}
+
+
+int main(int argc, char **argv) {
+
+    // toto aby to bylo jakz takz nahodne
     srand(time(NULL));
 
-    // TODO: parsnout argumenty
-    unsigned int tz = 500;
-    unsigned int tu = 100;
-    unsigned int f = 650;
-    unsigned int pocet_zakazniku = 4;
-    unsigned int pocet_uredniku = 2;
+    log ("zacinam program");
+
+    // parsnuti argumentu
+    args_t args;
+    if (!parse_args(argc, argv, &args)) {
+        return 1;
+    }
+    log ("argumenty parsovany");
+
+    // otevreni souboru
+    FILE *fd = fopen("./proj2.out", "w+");
+    if (fd == NULL) {
+        perror("file couldn't be opened");
+        return 1;
+    }
     
     shm_t ctl_shm;
-    control_t *ctl = ctl_init(pocet_zakazniku, &ctl_shm);
+    control_t *ctl = ctl_init(args.nz, &ctl_shm);
 
     // OD TED BUDE APLIKACE VICEPROCESOVA (doted nebyla)
     // -------------------------------------------------------------------------
 
     // vytvoreni zakazniku
     int pid;
-    for (unsigned int i = 0; i < pocet_zakazniku; i++) {
+    for (unsigned int i = 0; i < args.nz; i++) {
         pid = fork();
 
         // pokud jsem dite
         if (pid == 0) {
-            return zakaznik(ctl, tz);  
+            return zakaznik(ctl, args.tz, fd);  
         }
     }
 
     // vytvoreni uredniku
-    for (unsigned int i = 0; i < pocet_uredniku; i++) {
+    for (unsigned int i = 0; i < args.nu; i++) {
         pid = fork();
 
         // pokud jsem dite
         if (pid == 0) {
-            return urednik(ctl, tu);
+            return urednik(ctl, args.tu, fd);
         }
     }
 
     // spanek a pak uzavreni posty
-    sleep_rand_ms(0, f);
+    sleep_rand_ms(0, args.f);
     check_semaphore(sem_wait(&(ctl->posta_otevrena_sem)));
     ctl->posta_otevrena = 0;
+    print_file(ctl, fd, "closing%s\n", "");
     check_semaphore(sem_post(&(ctl->posta_otevrena_sem)));
-    printf("closing\n");
 
     // pockani na vsechny zakazniky a uredniky nez skonci
-    for (unsigned int i = 0; i < pocet_uredniku + pocet_zakazniku; i++) {
+    for (unsigned int i = 0; i < args.nu + args.nz; i++) {
         wait(NULL);
     }
 
     logv("jsem rodic a nez skoncim, vezte ze bylo %d zakazniku a %d uredniku", 
          ctl->z, ctl->u);
+
+    // zavreni souboru
+    fclose(fd);
 
     // uvolneni front
     free_shm(&(ctl->listovni_sluzby->shm));
