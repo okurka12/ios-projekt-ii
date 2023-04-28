@@ -73,6 +73,8 @@ copy_home: submit
 	rm -r -f /home/vita/ios_proj2/*
 	cp xpavli0a.zip /home/vita/ios_proj2/xpavli0a.zip
 	cp /home/vita/ios_testy/tester.sh /home/vita/ios_proj2/tester.sh
+	cp /home/vita/ios_proj2/xpavli0a.zip \
+/home/vita/ios_testy/IOS_tester_2023/xpavli0a.zip
 
 # scp the archive to eva (scp prompts for password!)
 .PHONY: scp_eva
