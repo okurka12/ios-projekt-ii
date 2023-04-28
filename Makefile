@@ -97,7 +97,20 @@ demo: demo.elf
 	echo $$?
 
 .PHONY: test
-test: remake
+test: remake test1 test2 test3
+
+.PHONY: test1
+test1:
 	rm -rf ./OUTPUT
 	./testy/tester.sh
+
+.PHONY: test2
+test2:
 	./testy/deadlock.sh 30 10 500 50 750
+
+.PHONY: test3
+test3:
+	cp ./testy/IOS_tester_2023/kontrola-vystupu.py ./kontrola-vystupu.py
+	./testy/IOS_tester_2023/test.sh
+	rm -f ./kontrola-vystupu.py
+
