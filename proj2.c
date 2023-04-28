@@ -403,7 +403,8 @@ int parse_args(int argc, char **argv, args_t *arg_struct) {
         log("nespravny format 5. argumentu");
         error = 1;
     }
-    logv("nz=%u nu=%u tz=%u tu=%u f=%u", arg_struct->nz, arg_struct->nu, arg_struct->tz, arg_struct->tu, arg_struct->f);
+    logv("nz=%u nu=%u tz=%u tu=%u f=%u", arg_struct->nz, arg_struct->nu, 
+         arg_struct->tz, arg_struct->tu, arg_struct->f);
     if (
         !(arg_struct->nu > 0) ||
         !(arg_struct->tz <= 10000) ||
