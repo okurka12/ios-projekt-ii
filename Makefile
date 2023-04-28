@@ -95,3 +95,9 @@ demo.elf: demo.o
 demo: demo.elf
 	./demo.elf
 	echo $$?
+
+.PHONY: test
+test: remake
+	rm -rf ./OUTPUT
+	./testy/tester.sh
+	./testy/deadlock.sh 30 10 500 50 750
