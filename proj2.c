@@ -384,28 +384,35 @@ int parse_args(int argc, char **argv, args_t *arg_struct) {
     }
     int error = 0;
     if (sscanf(argv[1], "%u", &(arg_struct->nz)) != 1) {
+        log("nespravny format 1. argumentu");
         error = 1;
     }
     if (sscanf(argv[2], "%u", &(arg_struct->nu)) != 1) {
+        log("nespravny format 2. argumentu");
         error = 1;
     }
     if (sscanf(argv[3], "%u", &(arg_struct->tz)) != 1) {
+        log("nespravny format 3. argumentu");
         error = 1;
     }
     if (sscanf(argv[4], "%u", &(arg_struct->tu)) != 1) {
+        log("nespravny format 4. argumentu");
         error = 1;
     }
     if (sscanf(argv[5], "%u", &(arg_struct->f)) != 1) {
+        log("nespravny format 5. argumentu");
         error = 1;
     }
+    logv("nz=%u nu=%u tz=%u tu=%u f=%u", arg_struct->nz, arg_struct->nu, arg_struct->tz, arg_struct->tu, arg_struct->f);
     if (
-        !(arg_struct->tz <= 0 && arg_struct->tz <= 10000) ||
-        !(arg_struct->tu <= 0 && arg_struct->tu <= 100) ||
-        !(arg_struct->f <= 0 && arg_struct->f <= 10000)
+        !(arg_struct->nu > 0) ||
+        !(arg_struct->tz <= 10000) ||
+        !(arg_struct->tu <= 100) ||
+        !(arg_struct->f <= 10000)
     ) {
         error = 1;
     }
-    if (error) {
+    if (!error) {
         return 1;
     } else {
         fprintf(stderr, "Invalid args\n");
@@ -424,11 +431,13 @@ int main(int argc, char **argv) {
 
     // parsnuti argumentu
     args_t args;
-    if (!parse_args(argc, argv, &args)) {
+    if (!(parse_args(argc, argv, &args))) {
+        log("parse args failed");
         return 1;
+    } else {
+        logv("argumenty parsovany nz=%u nu=%u tz=%u ms tu=%u ms f=%u ms", args.nz, 
+             args.nu, args.tz, args.tu, args.f);
     }
-    logv("argumenty parsovany nz=%u nu=%u tz=%u ms tu=%u ms f=%u ms", args.nz, 
-         args.nu, args.tz, args.tu, args.f);
 
     // otevreni souboru
     FILE *fd = fopen("./proj2.out", "w+");
