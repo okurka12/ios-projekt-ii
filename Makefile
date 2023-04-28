@@ -27,7 +27,7 @@ all: $(FILENAME)
 .PHONY: run
 .ONESHELL: 
 run: all
-	./$(FILENAME) 8 2 1500 50 1000
+	./$(FILENAME) 48 24 1000 100 1500
 	echo return code $$?
 
 # make clean
