@@ -36,6 +36,9 @@
 /* a bilion (for use in sleep_s macro definition) */
 #define BLN 1000000000
 
+/* generates a random integer betweeen `a` and `b` */
+#define randint(a, b) (rand() % ((b) - (a) + 1) + (a))
+
 /* pauses the execution of the program for `t` seconds (`t` can be float) */
 #define sleep_s(t) \
    nanosleep(&(struct timespec){ \

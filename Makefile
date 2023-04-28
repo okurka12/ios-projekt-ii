@@ -3,7 +3,7 @@
 # osobni    cislo: 251301
 # fakulta:  FIT VUT
 # Created:  2022-04-24
-# Modified: 2022-04-24
+# Modified: 2022-04-28
 # vyvijeno s GNU Make 4.3 (Built for x86_64-pc-linux-gnu)
 
 # Makefile pro druhy projekt predmetu IOS LS 2022/2023
@@ -27,7 +27,7 @@ all: $(FILENAME)
 .PHONY: run
 .ONESHELL: 
 run: all
-	./$(FILENAME) 4 2 1000 100 1500
+	./$(FILENAME) 8 2 1500 50 1000
 	echo return code $$?
 
 # make clean
