@@ -59,6 +59,10 @@ $(FILENAME): $(FILENAME).o shm.o fronta.o
 # toto neodevzdavat
 # ------------------------------------------------------------------------------
 
+.PHONY: run_no_break
+run_no_break: run
+	python3 skripty/skript_jedna.py
+
 .PHONY: submit
 submit:
 	rm -f xpavli0a.zip
