@@ -7,7 +7,7 @@
 **  2023-04-24  **
 **              **
 ** Last edited: **
-**  2023-04-27  **
+**  2023-04-28  **
 *****************/
 // Fakulta: FIT VUT
 // Vyvijeno s gcc 10.2.1 na Debian GNU/Linux 11
@@ -307,15 +307,6 @@ int zakaznik(control_t *ctl, unsigned int tz, FILE *file) {
         return 0;
     }
     
-    // zjisti jestli je otevreno
-
-    // vytvori zamceny semafor a pocka nez mu ho urednik odemce (zavola ho)
-    // print_file(ctl, file, "Z %u: called by office worker\n", cislo);
-
-    // // da slofika nez urednik vyridi a pak de dom
-    // sleep_rand_ms(0, 10);
-    // print_file(ctl, file, "Z %u: going home\n", cislo);
-
     return 0;
 }
 
@@ -357,6 +348,7 @@ control_t *ctl_init(unsigned int pocet_zakazniku, shm_t *control_p) {
     }
     logv("inicializovana fronta listovni sluzby (1): %p", 
          (void *)ctl->listovni_sluzby);
+
     ctl->baliky = queue_init(pocet_zakazniku);
     if (ctl->baliky == NULL) {
         free_shm(control_p);
@@ -364,6 +356,7 @@ control_t *ctl_init(unsigned int pocet_zakazniku, shm_t *control_p) {
     }
     logv("inicializovana fronta baliky (2): %p", 
          (void *)ctl->baliky);
+
     ctl->penezni_sluzby = queue_init(pocet_zakazniku);
     if (ctl->penezni_sluzby == NULL) {
         free_shm(control_p);
@@ -436,8 +429,8 @@ int main(int argc, char **argv) {
         log("parse args failed");
         return 1;
     } else {
-        logv("argumenty parsovany nz=%u nu=%u tz=%u ms tu=%u ms f=%u ms", args.nz, 
-             args.nu, args.tz, args.tu, args.f);
+        logv("argumenty parsovany nz=%u nu=%u tz=%u ms tu=%u ms f=%u ms", 
+             args.nz, args.nu, args.tz, args.tu, args.f);
     }
 
     // otevreni souboru
@@ -485,6 +478,7 @@ int main(int argc, char **argv) {
     // spanek a pak uzavreni posty
     sleep_rand_ms(0, args.f);
 
+    // uzavreni posty
     lock_all(ctl);
     ctl->posta_otevrena = 0;
     log("zaviram postu");
@@ -496,7 +490,7 @@ int main(int argc, char **argv) {
         wait(NULL);
     }
 
-    logv("jsem rodic a nez skoncim, vezte ze bylo %d zakazniku a %d uredniku", 
+    logv("jsem rodic a nez skoncim, vezte, ze bylo %d zakazniku a %d uredniku", 
          ctl->z, ctl->u);
 
     // zavreni souboru
