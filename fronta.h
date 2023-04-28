@@ -7,7 +7,7 @@
 **  2023-04-25  **
 **              **
 ** Last edited: **
-**  2023-04-26  **
+**  2023-04-28  **
 *****************/
 // Fakulta: FIT VUT
 // Vyvijeno s gcc 10.2.1 na Debian GNU/Linux 11
@@ -39,7 +39,6 @@ typedef struct {
 
 /* datovy typ fronty: prvky fronty budou ulozeny v poli,*/
 typedef struct {
-    sem_t queue_sem;     // semafor pro pristupovani k fronte
     unsigned int len;    // maximalni mozna delka fronty
     unsigned int start;  // zacatek
     unsigned int end;    // konec fronty (kolik je v ni prvku)

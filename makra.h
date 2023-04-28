@@ -64,25 +64,13 @@
         exit(2); \
     }
 
-/* uzamce frontu `q`, kdyz selze semafor vola exit */
-#define lock_queue(q) check_semaphore(sem_wait(&((q)->queue_sem)))
-
-/* odemce frontu `q`, kdyz selze semafor vola exit */
-#define unlock_queue(q) check_semaphore(sem_post(&((q)->queue_sem)))
-
 /* uzamce `access_sem` struktury `ctl` a jestli se to nepovede zavola exit */
 #define lock_all(ctl) \
-    check_semaphore(sem_wait(&(ctl->access_sem))) \
-    lock_queue(ctl->listovni_sluzby) \
-    lock_queue(ctl->baliky) \
-    lock_queue(ctl->penezni_sluzby)
+    check_semaphore(sem_wait(&(ctl->access_sem)))
 
 /* odemce `access_sem` struktury `ctl` a jestli se to nepovede zavola exit */
 #define unlock_all(ctl) \
-    check_semaphore(sem_post(&(ctl->access_sem))) \
-    unlock_queue(ctl->listovni_sluzby) \
-    unlock_queue(ctl->baliky) \
-    unlock_queue(ctl->penezni_sluzby)
+    check_semaphore(sem_post(&(ctl->access_sem)))
 
 /* vytiskne akci do `file`, pozor, muze zavolat exit */
 #define print_file(ctl, file, msg, ...) \
