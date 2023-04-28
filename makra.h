@@ -7,7 +7,7 @@
 **  2023-04-24  **
 **              **
 ** Last edited: **
-**  2023-04-24  **
+**  2023-04-28  **
 *****************/
 // Fakulta: FIT VUT
 // Vyvijeno s gcc 10.2.1 na Debian GNU/Linux 11
@@ -56,9 +56,46 @@
 /* sleeps for random amount of milliseconds between `a` and `b` */
 #define sleep_rand_ms(a, b) sleep_rand(0.001 * (a), 0.001 * (b))
 
+/* zkontroluje co vratil semaphore lock/unlock a kdyztak vola exit */
+#define check_semaphore(s) if ((s) == -1) \
+    { \
+        perror("semaphore_{post|wait|init} failed"); \
+        fprintf(stderr, "abort\n"); \
+        exit(2); \
+    }
 
-/* tato makra jsou jenom pro debugovani */
+/* uzamce frontu `q`, kdyz selze semafor vola exit */
+#define lock_queue(q) check_semaphore(sem_wait(&((q)->queue_sem)))
+
+/* odemce frontu `q`, kdyz selze semafor vola exit */
+#define unlock_queue(q) check_semaphore(sem_post(&((q)->queue_sem)))
+
+/* uzamce `access_sem` struktury `ctl` a jestli se to nepovede zavola exit */
+#define lock_all(ctl) \
+    check_semaphore(sem_wait(&(ctl->access_sem))) \
+    lock_queue(ctl->listovni_sluzby) \
+    lock_queue(ctl->baliky) \
+    lock_queue(ctl->penezni_sluzby)
+
+/* odemce `access_sem` struktury `ctl` a jestli se to nepovede zavola exit */
+#define unlock_all(ctl) \
+    check_semaphore(sem_post(&(ctl->access_sem))) \
+    unlock_queue(ctl->listovni_sluzby) \
+    unlock_queue(ctl->baliky) \
+    unlock_queue(ctl->penezni_sluzby)
+
+/* vytiskne akci do `file`, pozor, muze zavolat exit */
+#define print_file(ctl, file, msg, ...) \
+    check_semaphore(sem_wait(&(ctl->action_sem))); \
+    ctl->n_action++; \
+    fprintf(file, "%u: " msg, ctl->n_action, __VA_ARGS__); \
+    logv("%u: " msg, ctl->n_action, __VA_ARGS__); \
+    fflush(file); \
+    check_semaphore(sem_post(&(ctl->action_sem)))
+
+
 /*----------------------------------------------------------------------------*/
+/* tato makra jsou jenom pro debugovani */
 /*----------------------------------------------------------------------------*/
 #ifndef NDEBUG
 
