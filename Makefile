@@ -97,7 +97,7 @@ demo: demo.elf
 	echo $$?
 
 .PHONY: test
-test: remake test1 test2 test3
+test: remake test1 test2 test3 test4
 
 .PHONY: test1
 test1:
@@ -113,4 +113,8 @@ test3:
 	cp ./testy/IOS_tester_2023/kontrola-vystupu.py ./kontrola-vystupu.py
 	./testy/IOS_tester_2023/test.sh
 	rm -f ./kontrola-vystupu.py
+
+.PHONY: test4
+test4:
+	cat proj2.out | ./kontrola-vystupu.sh
 
