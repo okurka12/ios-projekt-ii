@@ -40,7 +40,7 @@ clean:
 remake: clean all
 
 # compile main
-$(FILENAME).o: proj2.c makra.h
+$(FILENAME).o: proj2.c makra.h proj2.h fronta.h control_struct.h
 	$(CC) $(CFLAGS) -c -o $(FILENAME).o proj2.c
 
 # compile shm
@@ -51,9 +51,18 @@ shm.o: shm.c proj2.h makra.h
 fronta.o: fronta.c fronta.h proj2.h makra.h
 	$(CC) $(CFLAGS) -c -o fronta.o fronta.c
 
+# compile zakaznik
+zakaznik.o: zakaznik.c makra.h proj2.h fronta.h control_struct.h
+	$(CC) $(CFLAGS) -c -o zakaznik.o zakaznik.c
+
+# compile urednik
+urednik.o: urednik.c makra.h proj2.h fronta.h control_struct.h
+	$(CC) $(CFLAGS) -c -o urednik.o urednik.c
+
 # link main
-$(FILENAME): $(FILENAME).o shm.o fronta.o
-	$(CC) $(LDFLAGS) -o $(FILENAME) $(FILENAME).o shm.o fronta.o
+$(FILENAME): $(FILENAME).o shm.o fronta.o zakaznik.o urednik.o
+	$(CC) $(LDFLAGS) -o $(FILENAME) $(FILENAME).o shm.o fronta.o zakaznik.o \
+	urednik.o
 
 
 # toto neodevzdavat
@@ -115,6 +124,7 @@ test3:
 	rm -f ./kontrola-vystupu.py
 
 .PHONY: test4
-test4:
+test4: all
+	./proj2 80 10 500 50 750
 	cat proj2.out | ./kontrola-vystupu.sh
 

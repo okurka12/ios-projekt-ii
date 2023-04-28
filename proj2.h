@@ -21,6 +21,15 @@
 #include <sys/ipc.h>    // IPC ctl symboly
 #include <sys/shm.h>    // shmget shmat shmctl 
 
+/*----------------------------------------------------------------------------*/
+/* definovano v souboru zvlast protoze struktura potrebuje typy z `proj2.h` 
+   i `fronta.h, ale zaroven `proj2.h` (tento soubor) porebuje `control_t` do 
+   hlavicek funkci urednika a zakaznika */
+
+struct control_structure;
+typedef struct control_structure control_t;
+/*----------------------------------------------------------------------------*/
+
 typedef struct {
    size_t size;
    char *shm;
@@ -33,5 +42,17 @@ shm_t *get_shm(const size_t size, shm_t *t);
 
 /* odpoji pamet od procesu a pak ji zrusi */
 void free_shm(shm_t *t);
+
+/* tento kod je kompletni kod zakaznika, ocekava se ze sdilena pamet je jiz 
+   pripojena k procesu vytvarejicimu zakaznika, zakaznik sdilenou pamet 
+   sam nepripojuje */
+int zakaznik(control_t *ctl, unsigned int tz, FILE *file);
+
+/* kompletni kod urednika, stejne nalezitosti jako pro `zakaznik()`*/
+int urednik(control_t *ctl, unsigned int tu, FILE *file);
+
+/* ziska veskerou sdilenou pamet: struktura control_t a vsechny fronty v ni,
+   vsechno inicializuje, pri neuspechu vraci NULL*/
+control_t *ctl_init(unsigned int pocet_zakazniku, shm_t *control_p);
 
 #endif  // ifndef __PROJ2_H_
