@@ -443,26 +443,32 @@ int main(int argc, char **argv) {
     // OD TED BUDE APLIKACE VICEPROCESOVA (doted nebyla)
     // -------------------------------------------------------------------------
 
-    // vytvoreni zakazniku
-    int pid;
-    for (unsigned int i = 0; i < args.nz; i++) {
-        rand();
-        pid = fork();
-
-        // pokud jsem dite
-        if (pid == 0) {
-            return zakaznik(ctl, args.tz, fd);  
-        }
-    }
+    // pro vytvareni potomku
+    int pid, rcode;
 
     // vytvoreni uredniku
     for (unsigned int i = 0; i < args.nu; i++) {
-        rand();
+        rand(); rand(); rand();
         pid = fork();
 
         // pokud jsem dite
         if (pid == 0) {
-            return urednik(ctl, args.tu, fd);
+            rcode = urednik(ctl, args.tu, fd);
+            fclose(fd);
+            return rcode;
+        }
+    }
+
+    // vytvoreni zakazniku
+    for (unsigned int i = 0; i < args.nz; i++) {
+        rand(); rand(); rand();
+        pid = fork();
+
+        // pokud jsem dite
+        if (pid == 0) {
+            rcode = zakaznik(ctl, args.tz, fd);
+            fclose(fd);
+            return rcode;  
         }
     }
 
