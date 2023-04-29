@@ -7,7 +7,7 @@
 **  2023-04-24  **
 **              **
 ** Last edited: **
-**  2023-04-28  **
+**  2023-04-29  **
 *****************/
 // Fakulta: FIT VUT
 // Vyvijeno s gcc 10.2.1 na Debian GNU/Linux 11
@@ -27,8 +27,9 @@
 #include <sys/shm.h>    // shmget shmat shmctl 
 #include <sys/types.h>  // fork
 #include <sys/wait.h>   // wait
-#include <semaphore.h>
+#include <semaphore.h>  // semafory
 #include <signal.h>     // kill, SIGKILL
+#include <string.h>     // memset
 
 /* struktura pro argumenty programu */
 typedef struct {
@@ -187,6 +188,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "couldn't allocate memory\n");
         return 1;
     }
+    memset(pids, 0, sizeof(pid_t) * (args.nz + args.nu));
 
     // inicializace sdilene pameti pro ridici strukturu
     log("alokuji sdilenou pamet");
@@ -214,17 +216,33 @@ int main(int argc, char **argv) {
         // pokazde pred vytvorenim potomka zavolat tohle, jinak bude mit kazdy
         // potomek nahodou radu inicializovanou stejnym seminkem
         rand(); rand(); rand(); rand(); rand();
-
+        
         pid = fork();
 
-        if (pid == 0) { // jsem-li dite
+        // pokud jsem dite
+        if (pid == 0) {
+
+            // kod ditete
             rcode = urednik(ctl, args.tu, fd);
 
             // uvolneni nesdilenych prostredku alokovanych rodicem
             free(pids);
             fclose(fd);
-            return rcode;  // konec ditete
+
+            // konec ditete
+            return rcode;
         }
+
+        // pokud selhal fork
+        if (pid == -1) {
+            fprintf(stderr, "selhal fork, zabijim deti, abort\n");
+            kill_all(pids, args.nz + args.nu);
+            free(pids);
+            fclose(fd);
+            return 1;
+        }
+
+        // rodic: pridat dite do seznamu deti
         pids[i] = pid;
     }
     log("vsichni urednici vytvoreni");
@@ -240,13 +258,28 @@ int main(int argc, char **argv) {
 
         // pokud jsem dite
         if (pid == 0) {
+
+            // kod ditete
             rcode = zakaznik(ctl, args.tz, fd);
 
             // uvolneni nesdilenych prostredku alokovanych rodicem
             free(pids);
             fclose(fd);
-            return rcode;  // konec ditete
+
+            // konec ditete
+            return rcode;
         }
+
+        // pokud selhal fork
+        if (pid == -1) {
+            fprintf(stderr, "selhal fork, zabijim deti, abort\n");
+            kill_all(pids, args.nz + args.nu);
+            free(pids);
+            fclose(fd);
+            return 1;
+        }
+
+        // rodic: pridat dite do seznamu deti
         pids[i] = pid;
     }
     log("vsichni zakaznici vytvoreni");
@@ -268,7 +301,7 @@ int main(int argc, char **argv) {
 
         // pokud se stala chyba a nejake dite skoncilo neuspesne
         if (rcode != 0) {
-            fprintf(stderr, "stala se chyba, zabijim deti\n");
+            fprintf(stderr, "stala se chyba v diteti, zabijim deti, abort\n");
             fclose(fd);
             free(pids);
             free_shm(&ctl_shm);
