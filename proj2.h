@@ -7,7 +7,7 @@
 **  2023-04-26  **
 **              **
 ** Last edited: **
-**  2023-04-26  **
+**  2023-04-28  **
 *****************/
 // Fakulta: FIT VUT
 // Vyvijeno s gcc 10.2.1 na Debian GNU/Linux 11
@@ -48,7 +48,7 @@ void free_shm(shm_t *t);
    sam nepripojuje */
 int zakaznik(control_t *ctl, unsigned int tz, FILE *file);
 
-/* kompletni kod urednika, stejne nalezitosti jako pro `zakaznik()`*/
+/* kompletni kod urednika, stejne nalezitosti jako pro `zakaznik()` */
 int urednik(control_t *ctl, unsigned int tu, FILE *file);
 
 /* ziska veskerou sdilenou pamet: struktura control_t a vsechny fronty v ni,
