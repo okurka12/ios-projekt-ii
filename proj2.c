@@ -28,6 +28,7 @@
 #include <sys/types.h>  // fork
 #include <sys/wait.h>   // wait
 #include <semaphore.h>
+#include <signal.h>     // kill, SIGKILL
 
 /* struktura pro argumenty programu */
 typedef struct {
@@ -144,6 +145,15 @@ int parse_args(int argc, char **argv, args_t *arg_struct) {
 }
 
 
+/* zabije vsechny procesy v `pids` */
+void kill_all(pid_t pids[], unsigned int n) {
+    for (unsigned int i = 0; i < n; i++) {
+        logv("zabijim potomka %d", pids[i]);
+        kill(pids[i], SIGKILL);
+    }
+}
+
+
 /* ./proj2 NZ NU TZ TU F */
 int main(int argc, char **argv) {
 
@@ -163,16 +173,34 @@ int main(int argc, char **argv) {
     }
 
     // otevreni souboru
+    log("oteviram ./proj2.out");
     FILE *fd = fopen("./proj2.out", "w+");
     if (fd == NULL) {
         perror("file couldn't be opened");
         return 1;
     }
     
+    // pole pro PID vsech procesu
+    log("alokuji pamet pro PIDs potomku");
+    pid_t *pids = malloc(sizeof(pid_t) * (args.nz + args.nu));
+    if (pids == NULL) {
+        fprintf(stderr, "couldn't allocate memory\n");
+        return 1;
+    }
+
     // inicializace sdilene pameti pro ridici strukturu
+    log("alokuji sdilenou pamet");
     shm_t ctl_shm;
     control_t *ctl = ctl_init(args.nz, &ctl_shm);
 
+    // null check
+    if (ctl == NULL) {
+        free(pids);
+        fprintf(stderr, __FILE__ ":%d: abort\n", __LINE__);
+        return 1;
+    }
+
+    // -------------------------------------------------------------------------
     // OD TED BUDE APLIKACE VICEPROCESOVA (doted nebyla)
     // -------------------------------------------------------------------------
 
@@ -180,30 +208,48 @@ int main(int argc, char **argv) {
     int pid, rcode;
 
     // vytvoreni uredniku
+    log("vytvarim uredniky");
     for (unsigned int i = 0; i < args.nu; i++) {
-        rand(); rand(); rand();
+
+        // pokazde pred vytvorenim potomka zavolat tohle, jinak bude mit kazdy
+        // potomek nahodou radu inicializovanou stejnym seminkem
+        rand(); rand(); rand(); rand(); rand();
+
         pid = fork();
 
-        // pokud jsem dite
-        if (pid == 0) {
+        if (pid == 0) { // jsem-li dite
             rcode = urednik(ctl, args.tu, fd);
+
+            // uvolneni nesdilenych prostredku alokovanych rodicem
+            free(pids);
             fclose(fd);
-            return rcode;
+            return rcode;  // konec ditete
         }
+        pids[i] = pid;
     }
+    log("vsichni urednici vytvoreni");
 
     // vytvoreni zakazniku
-    for (unsigned int i = 0; i < args.nz; i++) {
-        rand(); rand(); rand();
+    log("vytvarim zakazniky");
+    for (unsigned int i = args.nu; i < args.nu + args.nz; i++) {
+
+        // vizte tvoreni uredniku
+        rand(); rand(); rand(); rand(); rand();
+        
         pid = fork();
 
         // pokud jsem dite
         if (pid == 0) {
             rcode = zakaznik(ctl, args.tz, fd);
+
+            // uvolneni nesdilenych prostredku alokovanych rodicem
+            free(pids);
             fclose(fd);
-            return rcode;  
+            return rcode;  // konec ditete
         }
+        pids[i] = pid;
     }
+    log("vsichni zakaznici vytvoreni");
 
     // spanek a pak uzavreni posty
     sleep_rand_ms(0, args.f);
@@ -217,7 +263,18 @@ int main(int argc, char **argv) {
 
     // pockani na vsechny zakazniky a uredniky nez skonci
     for (unsigned int i = 0; i < args.nu + args.nz; i++) {
-        wait(NULL);
+        logv("cekam nez skonci potomci: %d/%d", i, args.nz + args.nu);
+        wait(&rcode);
+
+        // pokud se stala chyba a nejake dite skoncilo neuspesne
+        if (rcode != 0) {
+            fprintf(stderr, "stala se chyba, zabijim deti\n");
+            fclose(fd);
+            free(pids);
+            free_shm(&ctl_shm);
+            kill_all(pids, args.nz + args.nu);
+            return 1;
+        }
     }
 
     logv("jsem rodic a nez skoncim, vezte, ze bylo %d zakazniku a %d uredniku", 
@@ -233,6 +290,9 @@ int main(int argc, char **argv) {
 
     // uvolneni ctl
     free_shm(&ctl_shm);
+
+    // uvolneni pids
+    free(pids);
 
     return 0;
 }
