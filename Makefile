@@ -72,23 +72,31 @@ $(FILENAME): $(FILENAME).o shm.o fronta.o zakaznik.o urednik.o
 run_no_break: run
 	python3 skripty/skript_jedna.py
 
+# udela kyzeny zip (ale nemuzu to pouzivat protoze tam bude i tohle zejo)
 .PHONY: submit
 submit:
-	rm -f xpavli0a.zip
-	zip xpavli0a.zip *.c *.h Makefile
+	rm -f proj2.zip
+	zip proj2.zip *.c *.h Makefile
 
+# da to do zipu i slozku s testy
+.PHONY: zip_also_tests
+zip_also_tests:
+	rm -f proj2.zip
+	zip -r proj2.zip kontrola-vystupu.sh testy *.c *.h Makefile
+
+# da mi to dovnitr wsl filesystemu
 .PHONY: copy_home
 copy_home: submit
 	rm -r -f /home/vita/ios_proj2/*
-	cp xpavli0a.zip /home/vita/ios_proj2/xpavli0a.zip
+	cp proj2.zip /home/vita/ios_proj2/proj2.zip
 	cp /home/vita/ios_testy/tester.sh /home/vita/ios_proj2/tester.sh
-	cp /home/vita/ios_proj2/xpavli0a.zip \
-/home/vita/ios_testy/IOS_tester_2023/xpavli0a.zip
+	cp /home/vita/ios_proj2/proj2.zip \
+/home/vita/ios_testy/IOS_tester_2023/proj2.zip
 
 # scp the archive to eva (scp prompts for password!)
 .PHONY: scp_eva
-scp_eva: submit
-	scp xpavli0a.zip xpavli0a@eva.fit.vutbr.cz:~/ios/proj2/xpavli0a.zip
+scp_eva: zip_also_tests
+	scp proj2.zip xpavli0a@eva.fit.vutbr.cz:~/ios/proj2/proj2.zip
 
 # compile demo
 demo.o: demo.c makra.h
@@ -108,6 +116,7 @@ demo: demo.elf
 .PHONY: test
 test: remake test1 test2 test3 test4
 
+# testy z githubu
 .PHONY: test1
 test1:
 	rm -rf ./OUTPUT
@@ -115,7 +124,7 @@ test1:
 
 .PHONY: test2
 test2:
-	./testy/deadlock.sh 30 10 500 50 750
+	./testy/deadlock.sh 30 10 500 50 750  2> /dev/null
 
 .PHONY: test3
 test3:
@@ -123,7 +132,9 @@ test3:
 	./testy/IOS_tester_2023/test.sh
 	rm -f ./kontrola-vystupu.py
 
+# poskytnuty skript z moodlu
 .PHONY: test4
+.ONESHELL: 
 test4: all
 	./proj2 80 10 500 50 750
 	cat proj2.out | ./kontrola-vystupu.sh
